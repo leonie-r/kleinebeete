@@ -25,7 +25,7 @@ os.chdir(os.path.abspath("../../../solaranlage/solar_history"))
 modules = ["mppt-1","mppt-2"]
 
 for i in modules:
-    mp1 = glob.glob(str("*"+i+"*"))
+    mp1 = glob.glob(str("*"+i+"-SolarHistory.csv"))
     df_from_each_file = []
     for f in mp1:
         df_temp = pd.read_csv(f, sep=',')
@@ -35,20 +35,20 @@ for i in modules:
     df_merged["Date"] = pd.to_datetime(df_merged["Date"])
     df_merged = df_merged.set_index("Date")
     df_merged = df_merged.sort_index()
-    df_merged = df_merged.drop_duplicates()
+    df_merged = df_merged[~df_merged.index.duplicated()]
 
 
     # save dataframe to csv
-    last_date = df_merged.index[0].strftime('%Y%m%d')
-    first_date = df_merged.index[-1].strftime('%Y%m%d')
-    df_merged.to_csv(str(last_date)+"_"+str(first_date)+"_"+str(i)+".csv")
+    first_date = df_merged.index[0].strftime('%Y%m%d')
+    last_date = df_merged.index[-1].strftime('%Y%m%d')
+    df_merged.to_csv(str(first_date)+"_"+str(last_date)+"_"+str(i)+".csv")
     
 
 
 # plot data
 # in order to compare both modules, load created csv's into dataframes
-mppt1 = pd.read_csv(str(last_date)+"_"+str(first_date)+"_mppt-1.csv",index_col=0)
-mppt2 = pd.read_csv(str(last_date)+"_"+str(first_date)+"_mppt-2.csv",index_col=0)
+mppt1 = pd.read_csv(str(first_date)+"_"+str(last_date)+"_mppt-1.csv",index_col=0)
+mppt2 = pd.read_csv(str(first_date)+"_"+str(last_date)+"_mppt-2.csv",index_col=0)
 
 mppt1.index = pd.to_datetime(mppt1.index)
 mppt2.index = pd.to_datetime(mppt2.index)
@@ -72,7 +72,7 @@ plt.savefig(savefig)
 
 
 
-# stack bar plot of bulk/absorption/float
+# battery bulk/absorption/float stack bar plot
 from matplotlib.dates import MO, WeekdayLocator, DateFormatter, AutoDateLocator, AutoDateFormatter, ConciseDateFormatter
 import matplotlib.dates as mdates
 # tick on mondays every week
@@ -114,47 +114,99 @@ for frame, var in zip(framelist,framevar):
 
 # to show that min max voltage of both modules are pretty close
 for frame, var in zip(framelist,framevar):
-    plt.plot(frame.index,frame[line_var[1]],label=line_var[1]+var)
-    plt.plot(frame.index,frame[line_var[0]],label=line_var[0]+var)
+    plt.plot(frame.index,frame[line_var[1]],label=line_var[1]+" "+var)
+    plt.plot(frame.index,frame[line_var[0]],label=line_var[0]+" "+var)
 plt.legend()
 plt.title("Vergleich der beiden Module, sehr identischer Verlauf")
 savefig = os.path.join("../plots/",str(last_date)+"_"+str(first_date)+"_min-max-voltage_beide-module-im-vergleich.png")
 plt.savefig(savefig)
 
+#############################
+######## Speichert irgendwie nicht ###########
+#############################
 
+# Max. PV Voltage
+# Max. PV power
+line_var2 = ['Max. PV voltage(V)', 'Max. PV power(W)']
+for i in range(len(line_var2)):
+    for frame, var in zip(framelist,framevar):
+        plt.plot(frame.index,frame[line_var2[i]],label=line_var2[i]+" "+var)
+        print(str(line_var2[i]))
+    plt.legend()
+    plt.title(str(line_var2[i]))
+    plt.xticks(rotation=45)
+    savefig = os.path.join("../plots/",str(last_date)+"_"+str(first_date)+"_"+str(line_var2[i])+".png")
+    plt.savefig(savefig)
+    plt.close()
+    print("saved")
+
+
+################
+
+# COMPARE climate data and solar history
+
+################
 
 # additional climate data: 
-# Leipzig Holzhausen
+# Leipzig Holzhausen 02928
 os.chdir("../holzhausen_klima_dwd")
 data = pd.read_csv("produkt_klima_tag_20191124_20210526_02928.txt", sep=";")
 
-# Leipzig/Halle
+# Leipzig/Halle 02932
 os.chdir("../klarchiv_02932_daily_akt")
 data2 = pd.read_csv("produkt_klima_tag_20191120_20210522_02932.txt", sep=";")
 
 data["date"] = pd.to_datetime(data["MESS_DATUM"], format="%Y%m%d")
 data2["date"] = pd.to_datetime(data2["MESS_DATUM"], format="%Y%m%d")
-xlim = (pd.to_datetime("2021-04-23"),pd.to_datetime("2021-05-25"))
-data_cut = data[(data["date"] > xlim[0]) & (data["date"] < xlim[1])]
-data2_cut = data2[(data2["date"] > xlim[0]) & (data2["date"] < xlim[1])]
+# select climate data of sloar history period
+#xlim = (pd.to_datetime("2021-04-23"),pd.to_datetime("2021-05-25"))
+#missing_dates = pd.date_range(start=data["date"].max(),end=frame.index.max())
+# concat series dates
+#try1 = pd.concat([data["date"],missing_dates],axis=0) #series, obj.. Fehler
 
-fig, ax = plt.subplots(nrows=2,ncols=1,figsize=(12,7))
+from datetime import timedelta
+datelim = (frame.index[0],frame.index[-1]) # sollte bestenfalls 1 Tag vorher und 1 Tag später sein
+data_cut = data[(data["date"] > datelim[0]) & (data["date"] < datelim[1])]
+data2_cut = data2[(data2["date"] > datelim[0]) & (data2["date"] < datelim[1])]
+xlim = (datelim[0]+ timedelta(days = -1),datelim[1]+ timedelta(days = 1))
+delta = np.arange((abs((xlim[0] - xlim[1]).days)))
+
+fig, ax = plt.subplots(nrows=4,ncols=1,figsize=(12,7))#,sharex=True)
 ax[0].plot(data_cut["date"],data_cut['  NM'],label = "Tagesmittel des Bedeckungsgrades [Achtel]; Holzhausen")
 ax[0].plot(data2_cut["date"],data2_cut["NM"],label = "Tagesmittel des Bedeckungsgrades [Achtel]; Leipzig/Halle")
 ax[0].plot(data2_cut["date"],data2_cut["SDK"],label = "Sonnenscheindauer Tagessumme [Stunden]; Leipzig/Halle")
-ax[0].legend()
-ax[0].xaxis.set_major_locator(locator)
-ax[0].xaxis.set_minor_locator(mdates.DayLocator(interval=1))
-ax[0].xaxis.set_major_formatter(date_form)
-ax[1].bar(frame.index.date, frame[stack_bar_var[0]], width, label=stack_bar_var[0]+" = laden") #edgecolor = 'black'
-ax[1].bar(frame.index.date, frame[stack_bar_var[1]], width, bottom=frame[stack_bar_var[0]], label=stack_bar_var[1])
-ax[1].bar(frame.index.date, frame[stack_bar_var[2]], width, bottom=frame[stack_bar_var[0]]+frame[stack_bar_var[1]], label=stack_bar_var[2]+" = voll geladen")
-ax[1].legend()
-ax[1].set_ylabel('time in minutes')
-ax[1].xaxis.set_major_locator(locator)
-ax[1].xaxis.set_minor_locator(mdates.DayLocator(interval=1))
+
+#x = np.arange(len(mppt1.index))
+#ax[1] = mppt1.plot(x=mppt1.index, y='Yield(Wh)', kind="bar")
+###
+
+# Hier klappt was nicht!!
+# x achse soll 1 Tag vor Zqehlung beginnen und 1 Tag weitergehen, damit nicht der Balken an der y achse klebt
+# aber: kommt dann nicht mehr hin mit den geteilten bars die den tick mittig haben sollen
+# 
+# ###
+ 
+ax[1].bar(delta[1:-1] - width/2,mppt1['Yield(Wh)'],0.35,label=str("Yield(Wh) from mppt1"))
+ax[1].bar(x + width/2,mppt2['Yield(Wh)'],0.35,label=str("Yield(Wh) from mppt2"))
+ax[1].set_xticks(x)
+
+for frame, var, position in zip(framelist,framevar,range(2,4)):
+    ax[position].bar(frame.index.date, frame[stack_bar_var[0]], width, label=stack_bar_var[0]+" = laden") #edgecolor = 'black'
+    ax[position].bar(frame.index.date, frame[stack_bar_var[1]], width, bottom=frame[stack_bar_var[0]], label=stack_bar_var[1])
+    ax[position].bar(frame.index.date, frame[stack_bar_var[2]], width, bottom=frame[stack_bar_var[0]]+frame[stack_bar_var[1]], label=stack_bar_var[2]+" = voll geladen")
+    ax[position].title.set_text("parameter from "+str(var))
+    ax[position].set_ylabel('time in minutes')
+
+for i in range(4):
+    ax[i].legend()
+    ax[i].xaxis.set_major_locator(locator)
+    ax[i].xaxis.set_minor_locator(mdates.DayLocator(interval=1))
+    ax[i].xaxis.set_major_formatter(date_form)
+    ax[i].set_xlim(xlim)
+
+#
 plt.tight_layout()
-plt.savefig("../plots/klimadaten_nm_sdk.png")
+plt.savefig("../plots/klimadaten_nm_sdk_"+str(xlim[0].date())+"_"+str(xlim[1].date())+".png")
 
 
 
@@ -211,7 +263,7 @@ axes[i+1].xaxis.set_major_formatter(date_form)
 
 plt.tight_layout()
 
-plt.savefig("../plots/compare_climate_variables.png")
+plt.savefig("../plots/compare_climate_variables_"+str(xlim[0].date())+"_"+str(xlim[1].date())+".png")
 
 
 
