@@ -15,6 +15,12 @@ Script that
 
 
 
+##################################
+
+# collect .csv's of each module (mppt1, mppt2) and merge into one dataframe + save updated csv
+
+#################################
+
 path = os.path.abspath(os.path.dirname(__file__))
 # set as working directory
 os.chdir(path)
@@ -45,8 +51,20 @@ for i in modules:
     
 
 
+
+##################################
+
 # plot data
 # in order to compare both modules, load created csv's into dataframes
+
+# ['Days ago', 'Yield(Wh)', 'Max. PV power(W)', 'Max. PV voltage(V)',
+    #    'Min. battery voltage(V)', 'Max. battery voltage(V)', 'Time in bulk(m)',
+    #    'Time in absorption(m)', 'Time in float(m)', 'Last error',
+    #    '2nd last error', '3rd last error', '4th last error']
+#################################
+
+
+
 mppt1 = pd.read_csv(str(first_date)+"_"+str(last_date)+"_mppt-1.csv",index_col=0)
 mppt2 = pd.read_csv(str(first_date)+"_"+str(last_date)+"_mppt-2.csv",index_col=0)
 
@@ -56,29 +74,66 @@ mppt2.index = pd.to_datetime(mppt2.index)
 framelist = [mppt1, mppt2]
 framevar = ["mppt1","mppt2"]
 
-# 8 variables as bar plot
-fig, axs = plt.subplots(nrows=8,ncols=1,sharex=True,figsize=(15,25))
-x = np.arange(len(mppt1.index)) # for bar positions
-width = 0.35 # for bar extension
-for ax,cols in zip(axs.reshape(-1),mppt1.columns[1:9]):
-    ax.bar(x - width/2,mppt1[cols],0.35,label=str(cols+" from mppt1"))
-    ax.bar(x + width/2,mppt2[cols],0.35,label=str(cols+" from mppt2"))
-    ax.legend()
-    ax.set_xticks(x)
-    ax.set_xticklabels(mppt1[cols].index.date,rotation=45)
-
-savefig = os.path.join("../plots/",str(last_date)+"_"+str(first_date)+"_variables.png")
-plt.savefig(savefig)
-
-
-
-# battery bulk/absorption/float stack bar plot
 from matplotlib.dates import MO, WeekdayLocator, DateFormatter, AutoDateLocator, AutoDateFormatter, ConciseDateFormatter
 import matplotlib.dates as mdates
 # tick on mondays every week
 locator = WeekdayLocator(byweekday=MO)
 # display day of week (here:Monday), date of month and month on major ticks
-date_form = DateFormatter("%a, %d\n%b")
+date_form = DateFormatter("%a\n%d\n%b")
+
+
+# 'Yield(Wh)', 'Max. PV power(W)', 'Max. PV voltage(V)' as bar plot
+"""
+fig, axs = plt.subplots(nrows=3,ncols=1,sharex=True)
+x = np.arange(len(mppt1.index)) # for bar positions
+width = 0.35 # for bar extension
+for ax,cols in zip(axs.reshape(-1),mppt1.columns[1:4]):
+    ax.bar(x - width/2,mppt1[cols],0.35,label=str(cols+" from mppt1"))
+    ax.bar(x + width/2,mppt2[cols],0.35,label=str(cols+" from mppt2"))
+    ax.legend()
+    ax.set_xticks(x)
+    #ax.set_xticklabels(mppt1[cols].index.date)
+    ax.set_xticklabels(mppt1.index)
+    ax.xaxis.set_major_locator(locator)
+    ax.xaxis.set_minor_locator(mdates.DayLocator(interval=1))
+    ax.xaxis.set_major_formatter(date_form)
+savefig = os.path.join("../plots/",str(last_date)+"_"+str(first_date)+"_yield_power_voltage.png")
+plt.tight_layout()
+plt.savefig(savefig)
+plt.close()
+"""
+
+# 3er plot
+# Yield, Max PV power (W), Max PV voltage (V)
+
+fig, axs = plt.subplots(nrows=3,ncols=1)
+x = np.arange(len(mppt1.index)) # for bar positions
+width = 0.35 # for bar extension
+for ax,cols in zip(axs.reshape(-2),mppt1.columns[1:3]):
+    ax.bar(x - width/2,mppt1[cols],0.35,label=str(cols+" from mppt1"))
+    ax.bar(x + width/2,mppt2[cols],0.35,label=str(cols+" from mppt2"))
+    ax.legend()
+    ax.set_xticks(x)
+    ax.set_xticklabels([])
+    #ax.set_xticklabels(mppt1[cols].index.date)
+axs[2].plot(mppt1.index, mppt1['Max. PV voltage(V)'],label='Max. PV voltage(V) from mppt1')
+axs[2].plot(mppt1.index, mppt2['Max. PV voltage(V)'],label='Max. PV voltage(V) from mppt2')    
+axs[2].legend()
+axs[2].set_xticklabels(mppt1.index)
+axs[2].xaxis.set_major_locator(locator)
+axs[2].xaxis.set_minor_locator(mdates.DayLocator(interval=1))
+axs[2].xaxis.set_major_formatter(date_form)
+savefig = os.path.join("../plots/",str(last_date)+"_"+str(first_date)+"_yield_power_voltage.png")
+plt.tight_layout()
+plt.savefig(savefig)
+plt.close()
+
+
+
+
+
+
+# battery bulk/absorption/float stack bar plot
 
 stack_bar_var = ['Time in bulk(m)','Time in absorption(m)', 'Time in float(m)']
 width = 0.65
@@ -94,51 +149,49 @@ for frame, var in zip(framelist,framevar):
     ax.xaxis.set_major_formatter(date_form)
     fig.suptitle("Parameters for module "+var)
     savefig = os.path.join("../plots/",str(last_date)+"_"+str(first_date)+"_bulk-float-absorption_"+var+".png")
+    plt.tight_layout()
     plt.savefig(savefig)
+plt.close()
+
 
 
 # min/max battery voltage
-line_var = ['Min. battery voltage(V)', 'Max. battery voltage(V)']
-for frame, var in zip(framelist,framevar):
-    fig, ax = plt.subplots()
-    ax.plot(frame.index,frame[line_var[0]],label=line_var[0])
-    ax.plot(frame.index,frame[line_var[1]],label=line_var[1])
-    ax.xaxis.set_major_locator(locator)
-    ax.xaxis.set_minor_locator(mdates.DayLocator(interval=1))
-    ax.xaxis.set_major_formatter(date_form)
-    ax.set_ylabel('battery voltage in Volt')
-    fig.suptitle("Min/Max battery Voltage for module "+var)
-    ax.legend()
-    savefig = os.path.join("../plots/",str(last_date)+"_"+str(first_date)+"_min-max-voltage_"+var+".png")
-    plt.savefig(savefig)
-
 # to show that min max voltage of both modules are pretty close
-for frame, var in zip(framelist,framevar):
-    plt.plot(frame.index,frame[line_var[1]],label=line_var[1]+" "+var)
-    plt.plot(frame.index,frame[line_var[0]],label=line_var[0]+" "+var)
+stylelist = ["solid","dashed"]
+line_var = ['Min. battery voltage(V)', 'Max. battery voltage(V)']
+for frame, var, style in zip(framelist,framevar,stylelist):
+    plt.plot(frame.index,frame[line_var[1]],label=line_var[1]+" "+var,linestyle=style)
+    plt.plot(frame.index,frame[line_var[0]],label=line_var[0]+" "+var,linestyle=style)
 plt.legend()
-plt.title("Vergleich der beiden Module, sehr identischer Verlauf")
+plt.xticks(rotation=45)
+plt.title("Min-Max Battery Voltage - mppt1 & mppt2")
 savefig = os.path.join("../plots/",str(last_date)+"_"+str(first_date)+"_min-max-voltage_beide-module-im-vergleich.png")
+plt.tight_layout()
 plt.savefig(savefig)
+plt.close()
 
-#############################
-######## Speichert irgendwie nicht ###########
-#############################
+
 
 # Max. PV Voltage
 # Max. PV power
 line_var2 = ['Max. PV voltage(V)', 'Max. PV power(W)']
+save_var = ['max-PV-voltage', 'max-PV-power']
 for i in range(len(line_var2)):
     for frame, var in zip(framelist,framevar):
         plt.plot(frame.index,frame[line_var2[i]],label=line_var2[i]+" "+var)
         print(str(line_var2[i]))
-    plt.legend()
-    plt.title(str(line_var2[i]))
-    plt.xticks(rotation=45)
-    savefig = os.path.join("../plots/",str(last_date)+"_"+str(first_date)+"_"+str(line_var2[i])+".png")
+        plt.legend()
+        plt.title(str(line_var2[i]))
+        plt.xticks(rotation=45)
+    plt.tight_layout()
+    savefig = os.path.join("../plots/",str(last_date)+"_"+str(first_date)+"_"+str(save_var[i])+".png")
     plt.savefig(savefig)
+    plt.show()
     plt.close()
     print("saved")
+    print(savefig)
+plt.close()
+
 
 
 ################
@@ -150,11 +203,12 @@ for i in range(len(line_var2)):
 # additional climate data: 
 # Leipzig Holzhausen 02928
 os.chdir("../holzhausen_klima_dwd")
-data = pd.read_csv("produkt_klima_tag_20191124_20210526_02928.txt", sep=";")
+import glob
+data = pd.read_csv((glob.glob("produkt*")[0]), sep=";") # file is named 'produkt_klima_tag_20191221_20210622_02928.txt'
 
 # Leipzig/Halle 02932
-os.chdir("../klarchiv_02932_daily_akt")
-data2 = pd.read_csv("produkt_klima_tag_20191120_20210522_02932.txt", sep=";")
+os.chdir("../halleleipzig_klima_dwd")
+data2 = pd.read_csv((glob.glob("produkt*")[0]), sep=";")
 
 data["date"] = pd.to_datetime(data["MESS_DATUM"], format="%Y%m%d")
 data2["date"] = pd.to_datetime(data2["MESS_DATUM"], format="%Y%m%d")
@@ -173,8 +227,8 @@ delta = np.arange((abs((xlim[0] - xlim[1]).days)))
 
 fig, ax = plt.subplots(nrows=4,ncols=1,figsize=(12,7))#,sharex=True)
 ax[0].plot(data_cut["date"],data_cut['  NM'],label = "Tagesmittel des Bedeckungsgrades [Achtel]; Holzhausen")
-ax[0].plot(data2_cut["date"],data2_cut["NM"],label = "Tagesmittel des Bedeckungsgrades [Achtel]; Leipzig/Halle")
-ax[0].plot(data2_cut["date"],data2_cut["SDK"],label = "Sonnenscheindauer Tagessumme [Stunden]; Leipzig/Halle")
+ax[0].plot(data2_cut["date"],data2_cut["  NM"],label = "Tagesmittel des Bedeckungsgrades [Achtel]; Leipzig/Halle")
+ax[0].plot(data2_cut["date"],data2_cut[" SDK"],label = "Sonnenscheindauer Tagessumme [Stunden]; Leipzig/Halle")
 
 #x = np.arange(len(mppt1.index))
 #ax[1] = mppt1.plot(x=mppt1.index, y='Yield(Wh)', kind="bar")
@@ -267,26 +321,26 @@ plt.savefig("../plots/compare_climate_variables_"+str(xlim[0].date())+"_"+str(xl
 
 
 
-"""
-climate = pd.read_csv("produkt_klima_tag_20191120_20210522_02932.txt", sep=";")
-climate["MESS_DATUM"] = pd.to_datetime(climate["MESS_DATUM"],format="%Y%m%d")
-climate = climate.set_index("MESS_DATUM")
-climate = climate[(climate.index > first_date) & (climate.index < last_date)]
-# NM;Tagesmittel des Bedeckungsgrades;Achtel;Klimadaten aus der Klimaroutine nach 1.4.2001, generiert aus SYNOP-Meldungen (3 Termine 06, 12, 18 UTC und Tageswerte aus st�ndlichen Werten oder Beobachtungen an Hauptterminen);arithm.Mittel aus mind. 21 Stundenwerten;;;eor;
-cloudcover = climate["NM"]
-# SDK;Sonnenscheindauer Tagessumme;Stunde;Klimadaten aus der Klimaroutine nach 1.4.2001, generiert aus SYNOP-Meldungen (3 Termine 06, 12, 18 UTC und Tageswerte aus st�ndlichen Werten oder Beobachtungen an Hauptterminen);00:00 - 24:00 UTC;;;eor;
-sunshine = climate["SDK"]
+# """
+# climate = pd.read_csv("produkt_klima_tag_20191120_20210522_02932.txt", sep=";")
+# climate["MESS_DATUM"] = pd.to_datetime(climate["MESS_DATUM"],format="%Y%m%d")
+# climate = climate.set_index("MESS_DATUM")
+# climate = climate[(climate.index > first_date) & (climate.index < last_date)]
+# # NM;Tagesmittel des Bedeckungsgrades;Achtel;Klimadaten aus der Klimaroutine nach 1.4.2001, generiert aus SYNOP-Meldungen (3 Termine 06, 12, 18 UTC und Tageswerte aus st�ndlichen Werten oder Beobachtungen an Hauptterminen);arithm.Mittel aus mind. 21 Stundenwerten;;;eor;
+# cloudcover = climate["NM"]
+# # SDK;Sonnenscheindauer Tagessumme;Stunde;Klimadaten aus der Klimaroutine nach 1.4.2001, generiert aus SYNOP-Meldungen (3 Termine 06, 12, 18 UTC und Tageswerte aus st�ndlichen Werten oder Beobachtungen an Hauptterminen);00:00 - 24:00 UTC;;;eor;
+# sunshine = climate["SDK"]
 
-sunshine.plot.bar()
-"""
-"""
-fig, ax = plt.subplots()
-ax[0,0].bar(climate.index, climate["NM"])
-ax[1,0].bar(climate.index, climate["SDK"])
-plt.plot(mppt1.index, mppt1["Yield(Wh)"])
-#os.getcwd()
-"""
+# sunshine.plot.bar()
+# """
+# """
+# fig, ax = plt.subplots()
+# ax[0,0].bar(climate.index, climate["NM"])
+# ax[1,0].bar(climate.index, climate["SDK"])
+# plt.plot(mppt1.index, mppt1["Yield(Wh)"])
+# #os.getcwd()
+# """
 
-#locator = AutoDateLocator()
-#formatter = ConciseDateFormatter(locator) #exchangeabgle with AutoDateFormatter
-#formatter = AutoDateFormatter(locator)
+# #locator = AutoDateLocator()
+# #formatter = ConciseDateFormatter(locator) #exchangeabgle with AutoDateFormatter
+# #formatter = AutoDateFormatter(locator)
