@@ -222,10 +222,11 @@ from datetime import timedelta
 datelim = (frame.index[0],frame.index[-1]) # sollte bestenfalls 1 Tag vorher und 1 Tag später sein
 data_cut = data[(data["date"] > datelim[0]) & (data["date"] < datelim[1])]
 data2_cut = data2[(data2["date"] > datelim[0]) & (data2["date"] < datelim[1])]
-xlim = (datelim[0]+ timedelta(days = -1),datelim[1]+ timedelta(days = 1))
+xlim = datelim
+#xlim = (datelim[0]+ timedelta(days = -1),datelim[1]+ timedelta(days = 1))
 delta = np.arange((abs((xlim[0] - xlim[1]).days)))
 
-fig, ax = plt.subplots(nrows=4,ncols=1,figsize=(12,7))#,sharex=True)
+fig, ax = plt.subplots(nrows=5,ncols=1,figsize=(12,7))#,sharex=True)
 ax[0].plot(data_cut["date"],data_cut['  NM'],label = "Tagesmittel des Bedeckungsgrades [Achtel]; Holzhausen")
 ax[0].plot(data2_cut["date"],data2_cut["  NM"],label = "Tagesmittel des Bedeckungsgrades [Achtel]; Leipzig/Halle")
 ax[0].plot(data2_cut["date"],data2_cut[" SDK"],label = "Sonnenscheindauer Tagessumme [Stunden]; Leipzig/Halle")
@@ -234,17 +235,15 @@ ax[0].plot(data2_cut["date"],data2_cut[" SDK"],label = "Sonnenscheindauer Tagess
 #ax[1] = mppt1.plot(x=mppt1.index, y='Yield(Wh)', kind="bar")
 ###
 
-# Hier klappt was nicht!!
-# x achse soll 1 Tag vor Zqehlung beginnen und 1 Tag weitergehen, damit nicht der Balken an der y achse klebt
-# aber: kommt dann nicht mehr hin mit den geteilten bars die den tick mittig haben sollen
-# 
-# ###
- 
-ax[1].bar(delta[1:-1] - width/2,mppt1['Yield(Wh)'],0.35,label=str("Yield(Wh) from mppt1"))
-ax[1].bar(x + width/2,mppt2['Yield(Wh)'],0.35,label=str("Yield(Wh) from mppt2"))
-ax[1].set_xticks(x)
+#ax[1].bar(delta[1:-1] - width/2,mppt1['Yield(Wh)'],0.35,label=str("Yield(Wh) from mppt1"))
+fig, ax = plt.subplots(nrows=5,ncols=1,figsize=(12,7))#,sharex=True)
+ax[1].bar(delta,mppt1['Yield(Wh)'],0.35,label=str("Yield(Wh) from mppt1"))
+ax[2].bar(delta,mppt2['Yield(Wh)'],0.35,label=str("Yield(Wh) from mppt2"))
+ax[1].set_xticks(delta)
+ax[2].set_xticks(delta)
 
-for frame, var, position in zip(framelist,framevar,range(2,4)):
+for frame, var, position in zip(framelist,framevar,range(3,5)):
+    print(var)
     ax[position].bar(frame.index.date, frame[stack_bar_var[0]], width, label=stack_bar_var[0]+" = laden") #edgecolor = 'black'
     ax[position].bar(frame.index.date, frame[stack_bar_var[1]], width, bottom=frame[stack_bar_var[0]], label=stack_bar_var[1])
     ax[position].bar(frame.index.date, frame[stack_bar_var[2]], width, bottom=frame[stack_bar_var[0]]+frame[stack_bar_var[1]], label=stack_bar_var[2]+" = voll geladen")
@@ -263,6 +262,32 @@ plt.tight_layout()
 plt.savefig("../plots/klimadaten_nm_sdk_"+str(xlim[0].date())+"_"+str(xlim[1].date())+".png")
 
 
+################
+# NEW
+##################
+
+
+# weather data and essential PV variables
+index = mppt1.index.date
+times = pd.DataFrame({'Time in bulk(m)':mppt1['Time in bulk(m)'],'Time in absorption(m)':mppt1['Time in absorption(m)'],'Time in float(m)':mppt1['Time in float(m)']},index=index)
+fig, ax = plt.subplots(nrows=6,ncols=1,figsize=(20,12))#,sharex=True)
+ax[0].plot(data_cut["date"],data_cut['  NM'],label = "Tagesmittel des Bedeckungsgrades [Achtel]; Holzhausen")
+ax[0].plot(data2_cut["date"],data2_cut["  NM"],label = "Tagesmittel des Bedeckungsgrades [Achtel]; Leipzig/Halle")
+ax[0].plot(data2_cut["date"],data2_cut[" SDK"],label = "Sonnenscheindauer Tagessumme [Stunden]; Leipzig/Halle")
+ax[0].legend()
+times.plot(kind='bar',cmap='Dark2', stacked=True, rot=90,ax=ax[1])
+mppt1['Yield(Wh)'].plot(legend=True,ax=ax[2])
+mppt1['Max. PV power(W)'].plot(legend=True,ax=ax[3])
+mppt1['Max. PV voltage(V)'].plot(legend=True,ax=ax[4])
+mppt1['Min. battery voltage(V)'].plot(legend=True,ax=ax[5])
+mppt1['Max. battery voltage(V)'].plot(legend=True,ax=ax[5])
+
+plt.tight_layout()
+plt.savefig("../plots/klimadaten_PV-variables_mppt1_"+str(xlim[0].date())+"_"+str(xlim[1].date())+".png")
+
+################
+# NEW END
+##################
 
 variables = [
    # 'QN_3', 
