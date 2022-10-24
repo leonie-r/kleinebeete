@@ -122,6 +122,11 @@ savefig = os.path.join("../plots/",str(last_date)+"_"+str(first_date)+"_min-max-
 plt.savefig(savefig)
 
 
+################
+
+# COMPARE climate data and solar history
+
+################
 
 # additional climate data: 
 # Leipzig Holzhausen
@@ -134,11 +139,16 @@ data2 = pd.read_csv("produkt_klima_tag_20191120_20210522_02932.txt", sep=";")
 
 data["date"] = pd.to_datetime(data["MESS_DATUM"], format="%Y%m%d")
 data2["date"] = pd.to_datetime(data2["MESS_DATUM"], format="%Y%m%d")
-xlim = (pd.to_datetime("2021-04-23"),pd.to_datetime("2021-05-25"))
+# select climate data of sloar history period
+#xlim = (pd.to_datetime("2021-04-23"),pd.to_datetime("2021-05-25"))
+#missing_dates = pd.date_range(start=data["date"].max(),end=frame.index.max())
+# concat series dates
+#try1 = pd.concat([data["date"],missing_dates],axis=0) #series, obj.. Fehler
+xlim = (frame.index[0],frame.index[-1]) # sollte bestenfalls 1 Tag vorher und 1 Tag später sein
 data_cut = data[(data["date"] > xlim[0]) & (data["date"] < xlim[1])]
 data2_cut = data2[(data2["date"] > xlim[0]) & (data2["date"] < xlim[1])]
 
-fig, ax = plt.subplots(nrows=2,ncols=1,figsize=(12,7))
+fig, ax = plt.subplots(nrows=3,ncols=1,figsize=(12,7))
 ax[0].plot(data_cut["date"],data_cut['  NM'],label = "Tagesmittel des Bedeckungsgrades [Achtel]; Holzhausen")
 ax[0].plot(data2_cut["date"],data2_cut["NM"],label = "Tagesmittel des Bedeckungsgrades [Achtel]; Leipzig/Halle")
 ax[0].plot(data2_cut["date"],data2_cut["SDK"],label = "Sonnenscheindauer Tagessumme [Stunden]; Leipzig/Halle")
@@ -146,6 +156,8 @@ ax[0].legend()
 ax[0].xaxis.set_major_locator(locator)
 ax[0].xaxis.set_minor_locator(mdates.DayLocator(interval=1))
 ax[0].xaxis.set_major_formatter(date_form)
+ax[0].set_xlim(xlim)
+ax[1].set_xlim(xlim)
 ax[1].bar(frame.index.date, frame[stack_bar_var[0]], width, label=stack_bar_var[0]+" = laden") #edgecolor = 'black'
 ax[1].bar(frame.index.date, frame[stack_bar_var[1]], width, bottom=frame[stack_bar_var[0]], label=stack_bar_var[1])
 ax[1].bar(frame.index.date, frame[stack_bar_var[2]], width, bottom=frame[stack_bar_var[0]]+frame[stack_bar_var[1]], label=stack_bar_var[2]+" = voll geladen")
@@ -153,8 +165,10 @@ ax[1].legend()
 ax[1].set_ylabel('time in minutes')
 ax[1].xaxis.set_major_locator(locator)
 ax[1].xaxis.set_minor_locator(mdates.DayLocator(interval=1))
+#ax[2].set_xlim(xlim)
+#ax[2].bar(frame.index.date, frame[])
 plt.tight_layout()
-plt.savefig("../plots/klimadaten_nm_sdk.png")
+plt.savefig("../plots/klimadaten_nm_sdk_"+str(xlim[0].date())+"_"+str(xlim[1].date())+".png")
 
 
 
@@ -211,7 +225,7 @@ axes[i+1].xaxis.set_major_formatter(date_form)
 
 plt.tight_layout()
 
-plt.savefig("../plots/compare_climate_variables.png")
+plt.savefig("../plots/compare_climate_variables_"+str(xlim[0].date())+"_"+str(xlim[1].date())+".png")
 
 
 
